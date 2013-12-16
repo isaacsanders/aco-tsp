@@ -1,12 +1,5 @@
-(ns aco-tsp.core)
-
-(defn foo
-  "I don't do a whole lot."
-  [x]
-  (println x "Hello, World!"))
-
-(defn file->graph [f]
-  f)
+(ns aco-tsp.core
+    (:use [loom.graph]))
 
 (defn init-pheromones [g]
   (reduce (fn [m elem] (assoc m elem 0 ))

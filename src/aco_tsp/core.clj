@@ -66,8 +66,8 @@
 (defn do-transition [graph ants pheromones]
   (let [next-ants (map (fn [ant] (next-step ant graph pheromones)) ants)
         tours (map second next-ants)
-        new-pheromones (decay-pheromones pheromones (vec (zipmap (filter #(not (nil? %)) (map first ants))
-                                                            (filter #(not (nil? %)) (map first next-ants)))))]
+        new-pheromones (decay-pheromones pheromones (vec (zipmap (filter (comp not nil?) (map first ants))
+                                                            (filter (comp not nil?) (map first next-ants)))))]
     [ants pheromones]))
 
 (defn find-tours [graph ants pheromones]

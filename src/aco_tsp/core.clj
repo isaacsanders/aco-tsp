@@ -1,31 +1,46 @@
 (ns aco-tsp.core
-  (:require [clojure.set])
-  (:use [loom.graph]
-        [clojure.math.numeric-tower :only [expt]]
+  (:require [clojure.set]
+            [loom.graph :as loom])
+  (:use [clojure.math.numeric-tower :only [expt]]
         [aco-tsp.graph]
         [clojure.java.io :only [file]]))
 
 (defn init-pheromones [g]
   (reduce (fn [m elem] (assoc m elem 0 ))
           {}
-          (edges g)))
+          (loom/edges g)))
 
 (defn add-pheromone [amt edge m]
   (update-in m [edge] (partial + amt)))
 
-(defn visibility [g i j]
-  (/ 1.0 (weight g i j)))
+(defn tau-sub-0 [g]
+  (/ 1.0 (* (count (loom/nodes g))
+          (nearest-neighbor-heuristic g))))
 
-(defn tau-eta [g p i j beta]
+(defn decay-pheromones [pheromones g edges]
+
+  (reduce (fn [p e]
+            (let [new-val (+ (* (- 1.0 rho) (p e))
+                             (* rho (tau-sub-0 g)))]
+              (assoc (assoc p e new-val) (reverse e) new-val)))
+          pheromones edges))
+
+(defn visibility [g i j]
+  (/ 1.0 (loom/weight g i j)))
+
+(defn tau-eta [g p i beta j]
+  (println p (p [i j]))
   (* (p i j)
      (expt (visibility g i j) beta)))
 
 (defn choose-next-city [graph pheromones current previous constants]
   (let [beta (constants :beta)
-	candidates (take (constants :cl) (sort-by #(weight graph current %)
-                                     (clojure.set/difference (set (successors graph current))
-                                                             (set previous))))
-        pheromones-fn (fn [candidate] (tau-eta graph pheromones current candidate beta))
+        tabu-list (clojure.set/difference (set (loom/nodes graph))
+                                          (set (rest previous)))
+        candidates (clojure.set/difference (set (take (constants :cl) (sort-by #(loom/weight graph current %)
+                                                                  (loom/successors graph current))))
+                                           (set previous))
+        pheromones-fn (fn [candidate] (tau-eta graph pheromones current beta candidate))
         chance-fn (fn [probs]
                     (let [chance (rand)]
                       (loop [[prob state] (first probs)
@@ -36,24 +51,26 @@
                             (recur [(+ prob next-prob) next-state] (rest probs)))))))
         probs-fn (fn [probs candidates]
                    (let [candidate (first candidates)
-                         normalizer (float (apply + (map (partial tau-eta graph pheromones current beta) candidates)))]
+                         normalizer (apply + (map (partial tau-eta graph pheromones current beta) candidates))]
                      (if (empty? candidates)
                        probs
-                       (recur (assoc probs (/ (tau-eta graph pheromones current candidate beta) normalizer)
+                       (recur (assoc probs (/ (tau-eta graph pheromones current beta candidate) normalizer)
                                      candidate)
                               (rest candidates)))))
         probability-fn (fn [candidates]
                          (chance-fn (probs-fn {} candidates)))]
     (if (empty? candidates)
-      (apply (partial max-key (partial weight graph current)) (successors graph current))
+      (do
+        (println tabu-list)
+        (apply (partial min-key (partial loom/weight graph current)) tabu-list))
       (if (<= (rand) (constants :q-sub-0))
         (apply (partial max-key pheromones-fn) candidates)
         (probability-fn candidates)))))
 
 ; returns chosen tour
 (defn next-step [[current tour] graph pheromones constants]
-  (let [unvisited (clojure.set/difference (set (nodes graph)) (set tour))]
-    (case
+  (let [unvisited (clojure.set/difference (set (loom/nodes graph)) (set tour))]
+    (cond
       (nil? current) [current tour]
       (and (= current (first tour)) (empty? unvisited)) [nil (concat tour [current])]
       :else (let [next-state (choose-next-city graph pheromones current tour constants)]
@@ -61,10 +78,9 @@
 
 (defn do-transition [graph ants pheromones constants]
   (let [next-ants (map (fn [ant] (next-step ant graph pheromones constants)) ants)
-        tours (map second next-ants)
-        new-pheromones (decay-pheromones pheromones (vec (zipmap (filter (comp not nil?) (map first ants))
-                                                            (filter (comp not nil?) (map first next-ants)))))]
-    [ants pheromones]))
+        tours (map last next-ants)
+        new-pheromones (decay-pheromones pheromones graph (map #(map first %) (vec (zipmap next-ants ants))))]
+    [next-ants pheromones]))
 
 (defn find-tours [graph ants pheromones constants]
   (if (every? #(nil? (first %)) ants)
@@ -92,9 +108,9 @@
       (if (> time-step 100)
         (list best-tour pheromones) ; return
         (let [[new-ants new-pheromones] (find-tours graph ants pheromones constants)]
-          (recur (inc time-step) (apply (partial min-key
-                                                 (partial tour-cost graph))
-                                        (map second new-ants))
+          (recur (inc time-step)
+                 (apply (partial min-key (partial tour-cost graph))
+                        (map last new-ants))
                  (update-pheromones new-pheromones best-tour (constants :rho))))))))
 
 ; p^k[i,j](t)
@@ -117,11 +133,10 @@
   (as-transition-rule i j unvisited pheromones sight 1 (constants beta)))
 
 (defn aco-init-ants-fn [graph antcount]
-  (map (fn [i] [i []]) (take antcount (shuffle (nodes graph)))))
+  (map (fn [i] [i []]) (take antcount (shuffle (loom/nodes graph)))))
 
 (defn aco-init-pheromones-fn [graph]
-  (zipmap (edges graph) (repeat (/ 1 (* (count (nodes graph))
-					(nearest-neighbor-heuristic graph))))))
+  (zipmap (loom/edges graph) (repeat (tau-sub-0 cities))))
 
 (defn -main [filename antcount] ;beta rho cl q-sub-0]
   (let [cities (file->graph (file filename))
@@ -138,9 +153,4 @@
 					 :rho rho,
 					 :cl cl,
 					 :q-sub-0 q-sub-0})]
-      )))
-
-;(defn change-pheromones [best-tour tours pheromones]
-;  (add-pheromone-on-tour (? best-tour)
-;                         (? best-tour)
-;                         (decay-pheromone-on-tour (? tours) pheromones))
+      (println best-tour))))

@@ -36,6 +36,21 @@
         (let [[best-tour new-pheromones] (do-transition graph ants pheromone)]
           (recur (+ 1 time) best-tour new-pheromones))))))
 
+; returns chosen tour
+(defn ant-tour [start graph pheromones transition-fn]
+  (loop [current start
+	 visited (list start)
+	 unvisited (nodes graph)
+	 traversed-edges (list)]
+	(case [(and (= current start)
+		    (empty? unvisited))
+	       visited]
+	      [else (let [next (transition-fn current visited graph pheromones)]
+		      (recur next
+			     (append visited (list next))
+			     (disj unvisited next)
+			     (append traversed-edges (list [current next]))))])))
+
 ; p^k[i,j](t)
 ; i : node
 ; j : node

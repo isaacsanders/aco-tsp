@@ -17,8 +17,7 @@
   (/ 1.0 (* (count (loom/nodes g))
           (nearest-neighbor-heuristic g))))
 
-(defn decay-pheromones [pheromones g edges]
-
+(defn decay-pheromones [pheromones g edges rho]
   (reduce (fn [p e]
             (let [new-val (+ (* (- 1.0 rho) (p e))
                              (* rho (tau-sub-0 g)))]
@@ -79,14 +78,14 @@
 (defn do-transition [graph ants pheromones constants]
   (let [next-ants (map (fn [ant] (next-step ant graph pheromones constants)) ants)
         tours (map last next-ants)
-        new-pheromones (decay-pheromones pheromones graph (map #(map first %) (vec (zipmap next-ants ants))))]
+        new-pheromones (decay-pheromones pheromones graph (map #(map first %) (vec (zipmap next-ants ants))) (constants :rho))]
     [next-ants pheromones]))
 
 (defn find-tours [graph ants pheromones constants]
   (if (every? #(nil? (first %)) ants)
     [ants pheromones]
     (let [[ants pheromones] (do-transition graph ants pheromones constants)]
-      (recur graph ants pheromones))))
+      (recur graph ants pheromones constants))))
 
 (defn tour-edges [node-list]
   (second (reduce (fn [[prev edges-list] node]
@@ -130,13 +129,13 @@
 		     unvisited)))))
 
 (defn aco-transition-rule [i j unvisited pheromones sight constants]
-  (as-transition-rule i j unvisited pheromones sight 1 (constants beta)))
+  (as-transition-rule i j unvisited pheromones sight 1 (constants :beta)))
 
 (defn aco-init-ants-fn [graph antcount]
   (map (fn [i] [i []]) (take antcount (shuffle (loom/nodes graph)))))
 
 (defn aco-init-pheromones-fn [graph]
-  (zipmap (loom/edges graph) (repeat (tau-sub-0 cities))))
+  (zipmap (loom/edges graph) (repeat (tau-sub-0 graph))))
 
 (defn -main [filename antcount] ;beta rho cl q-sub-0]
   (let [cities (file->graph (file filename))
@@ -144,7 +143,7 @@
         cl 10 ;(Integer/parseInt cl)
         rho 0.1 ;(Float/parseFloat rho)
         beta 1 ;(Float/parseFloat beta)
-        q-sub-0 0.0 ;(Float/parseFloat q-sub-0)]
+        q-sub-0 0.0] ;(Float/parseFloat q-sub-0)]
     (let [[best-tour pheromones] (solve cities
 					aco-init-ants-fn
 					aco-init-pheromones-fn

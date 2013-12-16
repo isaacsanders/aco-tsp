@@ -22,6 +22,7 @@
 (def cl 10)
 (def q-sub-0 0.5)
 (def beta 1)
+(def rho 0.1)
 
 (defn visibility [g i j]
   (/ 1.0 (weight g i j)))
@@ -79,6 +80,11 @@
     [ants pheromones]
     (let [[ants pheromones] (do-transition graph ants pheromones)]
       (recur graph ants pheromones))))
+
+(defn update-pheromones [pheromones tour]
+  (reduce (fn [p edge] (assoc p edge (+ (* (- 1 rho) (pheromones edge))
+                                        (* rho (/ 1 (tour-cost tour))))))
+          pheromones (tour-edges tour))
 
 (defn solve [graph antcount init-ants-fn init-pheromones-fn]
   (let [ants (init-ants-fn graph antcount)]

@@ -1,7 +1,8 @@
 (ns aco-tsp.core
   (:require [clojure.set])
   (:use [loom.graph]
-        [clojure.math.numeric-tower :only [expt]]))
+        [clojure.math.numeric-tower :only [expt]]
+        [aco-tsp.graph]))
 
 (defn init-pheromones [g]
   (reduce (fn [m elem] (assoc m elem 0 ))
@@ -52,10 +53,11 @@
                               (rest candidates)))))
         probability-fn (fn [candidates]
                          (chance-fn (probs-fn {} candidates)))]
-    (case
-      (empty? candidates) (apply (partial max-key #(weight graph current)) (successors graph current))
-      (<= (rand) q-sub-0) (apply (partial max-key pheromones-fn) candidates)
-      :else (probability-fn candidates))))
+    (if (empty? candidates)
+      (apply (partial max-key (partial weight graph current)) (successors graph current))
+      (if (<= (rand) q-sub-0)
+        (apply (partial max-key pheromones-fn) candidates)
+        (probability-fn candidates)))))
 
 ; returns chosen tour
 (defn next-step [[current tour] graph pheromones]
@@ -111,10 +113,7 @@
 (defn -main [args]
   (let [cities (file->graph (file (first args)))
         antcount (second args)]
-    (solve cities antcount (take antcount (shuffle (nodes cities))) #(reduce (partial assoc) {} (edges %) (repeat (/ 1 (* (count (nodes %))
-                                                                                                                         (nearest-neighbor-heuristic %)))))
-
-(defn change-pheromones [best-tour tours pheromones]
-  (add-pheromone-on-tour (? best-tour)
-                         (? best-tour)
-                         (decay-pheromone-on-tour (? tours) pheromones))
+    (let [[best-tour pheromones] (solve cities antcount
+           #(take %2 (shuffle (nodes %1)))
+           #(zipmap (edges %) (repeat (/ 1 (* (count (nodes %))
+                                              (nearest-neighbor-heuristic %))))))])))

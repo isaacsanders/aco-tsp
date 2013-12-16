@@ -37,15 +37,18 @@
 
 ; returns chosen tour
 (defn ant-tour [start graph pheromones transition-fn]
-  (let [ant-tour-helper (fn [current visited unvisited traversed-edges]
-                          (case [(and (= current start)
-                                      (empty? unvisited))
-                                 visited]
-                            [else (let [next (transition-fn current visited graph pheromones)]
-                                    (ant-tour-helper next
-                                                     (append visited (list next))
-                                                     (disj unvisited next)))]))]
-                            (ant-tour-helper start (list start) (nodes graph) (list))))
+  (loop [current start
+	 visited (list start)
+	 unvisited (nodes graph)
+	 traversed-edges (list)]
+	(case [(and (= current start)
+		    (empty? unvisited))
+	       visited]
+	      [else (let [next (transition-fn current visited graph pheromones)]
+		      (recur next
+			     (append visited (list next))
+			     (disj unvisited next)
+			     (append traversed-edges (list [current next]))))])))
 
 ; p^k[i,j](t)
 ; i : node

@@ -15,7 +15,6 @@
 
 (def cl 10)
 (def q-sub-0 0.5)
-(def rho 0.1)
 
 (defn visibility [g i j]
   (/ 1.0 (weight g i j)))
@@ -82,12 +81,12 @@
                       :else [node (concat edges-list (list [prev node]))]))
                       [nil (list)] node-list)))
 
-(defn update-pheromones [pheromones tour]
+(defn update-pheromones [pheromones tour rho]
   (reduce (fn [p edge] (assoc p edge (+ (* (- 1 rho) (pheromones edge))
                                         (* rho (/ 1 (tour-cost tour))))))
           pheromones (tour-edges tour)))
 
-(defn solve [graph antcount init-ants-fn init-pheromones-fn beta]
+(defn solve [graph antcount init-ants-fn init-pheromones-fn beta rho]
   (let [ants (init-ants-fn graph antcount)]
     (loop [time-step 0
            best-tour nil
@@ -98,7 +97,7 @@
           (recur (inc time-step) (apply (partial min-key
                                                  (partial tour-cost graph))
                                         (map second new-ants))
-                 (update-pheromones new-pheromones best-tour)))))))
+                 (update-pheromones new-pheromones best-tour rho)))))))
 
 ; p^k[i,j](t)
 ; i : node
@@ -124,13 +123,14 @@
   (zipmap (edges graph) (repeat (/ 1 (* (count (nodes graph))
 					(nearest-neighbor-heuristic graph))))))
 
-(defn -main [filename antcount beta]
+(defn -main [filename antcount beta rho]
   (let [cities (file->graph (file filename))
         antcount (Integer/parseInt antcount)]
     (let [[best-tour pheromones] (solve cities antcount
 					aco-init-ants-fn
 					aco-init-pheromones-fn
-					beta)]
+					beta
+					rho)]
       )))
 
 ;(defn change-pheromones [best-tour tours pheromones]

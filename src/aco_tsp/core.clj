@@ -44,46 +44,47 @@
                             [else (let [next (transition-fn current visited graph pheromones)]
                                     (ant-tour-helper next
                                                      (append visited (list next))
-                                                     (disj unvisited next))]))]
+                                                     (disj unvisited next)))]))]
                             (ant-tour-helper start (list start) (nodes graph) (list))))
 
-        ; p^k[i,j](t)
-        ; i : node
-        ; j : node
-        ; unvisited : set of node
-        ; pheromones : (node node) -> int
-        ; sight : (node node) -> int
-        ; returns : probability of choosing node j as the next node
-        (defn as-transition-rule [i j unvisited pheromones sight alpha beta]
-          (/ (* (exp (pheromones i j) alpha)
-                (exp (sight i j) beta)
-                (apply + (map (fn [unvisited-node] (* (exp (pheromones [i unvisited-node]) alpha)
-                                                      (exp (sight i unvisited-node) beta)))
-                              unvisited)))))
+; p^k[i,j](t)
+; i : node
+; j : node
+; unvisited : set of node
+; pheromones : (node node) -> int
+; sight : (node node) -> int
+; returns : probability of choosing node j as the next node
+(defn as-transition-rule [i j unvisited pheromones sight alpha beta]
+  (/ (* (exp (pheromones i j) alpha)
+	(exp (sight i j) beta)
+	(apply + (map (fn [unvisited-node] (* (exp (pheromones [i unvisited-node]) alpha)
+					      (exp (sight i unvisited-node) beta)))
+		      unvisited)))))
 
-        (defn acs-transition-rule [i j unvisited pheromones sight beta]
-          (as-transition-rule i j unvisited pheromones sight 1 beta))
+(defn acs-transition-rule [i j unvisited pheromones sight beta]
+  (as-transition-rule i j unvisited pheromones sight 1 beta))
 
-        (defn get-sight [graph]
-          (let [sight (fn [i j]
-                        (/ 1
-                           (weight graph i j)))]
-            sight))
+(defn get-sight [graph]
+  (let [sight (fn [i j]
+		  (/ 1
+		     (weight graph i j)))]
+    sight))
 
-        (defn tour-length ;todo
-          )
+(defn tour-length ;todo
+  )
 
-        (def cl 10)
-        (def q-sub-0 0.5)
-        (def beta 1)
+(def cl 10)
+(def q-sub-0 0.5)
+(def beta 1)
 
-        (def visibility [g i j]
-          (/ 1.0 (weight g i j)))
+(def visibility [g i j]
+     (/ 1.0 (weight g i j)))
 
-        (defn choose-next-city [graph pheromones ant]
-          (fn [i j ant t]
-            (if (<= (rand) q-sub-0)
-              (max-key (* (get-in tau (concat (sort [i j]) [t]))
-                          (exp (eta i j) beta))
-                       (set/difference (successors graph i) (k :tour)))
-              (choose-next-city-probablistically 
+(defn choose-next-city [graph pheromones ant]
+  (fn [i j ant t]
+      (if (<= (rand) q-sub-0)
+	  (max-key (* (get-in tau (concat (sort [i j]) [t]))
+		      (exp (eta i j) beta))
+		   (set/difference (successors graph i) (k :tour)))
+	  (choose-next-city-probablistically 
+	   

@@ -115,17 +115,23 @@
                                               (expt (sight i unvisited-node) beta)))
                       unvisited))))
 
-(defn acs-transition-rule [i j unvisited pheromones sight beta]
+(defn aco-transition-rule [i j unvisited pheromones sight beta]
   (as-transition-rule i j unvisited pheromones sight 1 beta))
+
+(defn aco-init-ants-fn [graph antcount]
+  (map (fn [i] [i []]) (take antcount (shuffle (nodes graph)))))
+
+(defn aco-init-pheromones-fn [graph]
+  (zipmap (edges graph) (repeat (/ 1 (* (count (nodes graph))
+					(nearest-neighbor-heuristic graph))))))
 
 (defn -main [filename antcount]
   (let [cities (file->graph (file filename))
         antcount (Integer/parseInt antcount)]
     (let [[best-tour pheromones]
           (solve cities antcount
-                 #(map (fn [i] [i []]) (take %2 (shuffle (nodes %1))))
-                 #(zipmap (edges %) (repeat (/ 1 (* (count (nodes %))
-                                                    (nearest-neighbor-heuristic %))))))])))
+                 aco-init-ants-fn
+                 aco-init-pheromones-fn)])))
 
 ;(defn change-pheromones [best-tour tours pheromones]
 ;  (add-pheromone-on-tour (? best-tour)

@@ -2,7 +2,8 @@
   (:require [clojure.set])
   (:use [loom.graph]
         [clojure.math.numeric-tower :only [expt]]
-        [aco-tsp.graph]))
+        [aco-tsp.graph]
+        [clojure.java.io :only [file]]))
 
 (defn init-pheromones [g]
   (reduce (fn [m elem] (assoc m elem 0 ))
@@ -11,13 +12,6 @@
 
 (defn add-pheromone [amt edge m]
   (update-in m [edge] (partial + amt)))
-
-(defn decay-one-pheromone [decay-fn edge m]
-  (update-in m [edge] (comp (partial max 0) decay-fn)))
-
-(defn decay-pheromones [decay-fn m]
-  (reduce (fn [m e]
-            (update-in m [e] (comp (partial max 0) decay-fn))) m (keys m)))
 
 (def cl 10)
 (def q-sub-0 0.5)
@@ -46,7 +40,7 @@
                             (recur [(+ prob next-prob) next-state] (rest probs)))))))
         probs-fn (fn [probs candidates]
                    (let [candidate (first candidates)
-                         normalizer (apply + (map (partial tau-eta graph pheromones current) candidates))]
+                         normalizer (float (apply + (map (partial tau-eta graph pheromones current) candidates)))]
                      (if (empty? candidates)
                        probs
                        (recur (assoc probs (/ (tau-eta graph pheromones current candidate) normalizer)
@@ -72,19 +66,27 @@
 (defn do-transition [graph ants pheromones]
   (let [next-ants (map (fn [ant] (next-step ant graph pheromones)) ants)
         tours (map second next-ants)
-        new-pheromones (decay-pheromones pheromones tours)]
+        new-pheromones (decay-pheromones pheromones (vec (zipmap (filter #(not (nil? %)) (map first ants))
+                                                            (filter #(not (nil? %)) (map first next-ants)))))]
     [ants pheromones]))
 
 (defn find-tours [graph ants pheromones]
-  (if (every? (comp nil? first) ants)
+  (if (every? #(nil? (first %)) ants)
     [ants pheromones]
     (let [[ants pheromones] (do-transition graph ants pheromones)]
       (recur graph ants pheromones))))
 
+(defn tour-edges [node-list]
+  (second (reduce (fn [[prev edges-list] node]
+                    (cond
+                      (nil? prev) [node edges-list]
+                      :else [node (concat edges-list (list [prev node]))]))
+                      [nil (list)] node-list)))
+
 (defn update-pheromones [pheromones tour]
   (reduce (fn [p edge] (assoc p edge (+ (* (- 1 rho) (pheromones edge))
                                         (* rho (/ 1 (tour-cost tour))))))
-          pheromones (tour-edges tour))
+          pheromones (tour-edges tour)))
 
 (defn solve [graph antcount init-ants-fn init-pheromones-fn]
   (let [ants (init-ants-fn graph antcount)]
@@ -116,21 +118,16 @@
 (defn acs-transition-rule [i j unvisited pheromones sight beta]
   (as-transition-rule i j unvisited pheromones sight 1 beta))
 
-(defn -main [args]
-  (let [cities (file->graph (file (first args)))
-        antcount (second args)]
-    (let [[best-tour pheromones] (solve cities antcount
-           #(take %2 (shuffle (nodes %1)))
-           #(zipmap (edges %) (repeat (/ 1 (* (count (nodes %))
-                                              (nearest-neighbor-heuristic %))))))])))
+(defn -main [filename antcount]
+  (let [cities (file->graph (file filename))
+        antcount (Integer/parseInt antcount)]
+    (let [[best-tour pheromones]
+          (solve cities antcount
+                 #(map (fn [i] [i []]) (take %2 (shuffle (nodes %1))))
+                 #(zipmap (edges %) (repeat (/ 1 (* (count (nodes %))
+                                                    (nearest-neighbor-heuristic %))))))])))
 
 ;(defn change-pheromones [best-tour tours pheromones]
 ;  (add-pheromone-on-tour (? best-tour)
 ;                         (? best-tour)
 ;                         (decay-pheromone-on-tour (? tours) pheromones))
-
-(defn tour-edges [node-list]
-  (second (reduce (fn [[prev edges-list] node]
-		      (cond [(nil? prev) [node edges-list]
-			     :else [node (concat edges-list (list [prev node]))]]
-			    [nil (list)] node-list)))))

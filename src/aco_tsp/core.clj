@@ -1,5 +1,6 @@
 (ns aco-tsp.core
-    (:use [loom.graph]))
+    (:use [loom.graph]
+	  [closure.contrib.math]))
 
 (defn init-pheromones [g]
   (reduce (fn [m elem] (assoc m elem 0 ))
@@ -20,9 +21,19 @@
   (let [ants (init-ants-fn graph antcount)]
        [pheromone (init-pheromone-fn graph)]
        (loop [time 0
-	      ants ants
+	      best-tour nil
 	      pheromone pheromone]
-	     )))
+	     (if (> time 100000)
+		 (list best-tour pheromone) ; return
+		 (let [output (do-transition graph ants pheromone)]
+		   (recurse (+ 1 time) (first output) (last output)))))))
+
+(defn do-transition [graph ants pheromone]
+  (let [tours (map (fn [ant] (ant-tour ant graph pheromone ??transition-fn??))
+		   ants)]
+       [new-pheromones (change-pheromones tours pheromones)]
+       [best-tour (get-best-tour tours)]
+       (list best-tour new-pheromones)))
 
 ; returns chosen tour
 (defn ant-tour [start graph pheromones transition-fn]
@@ -42,19 +53,22 @@
 ; unvisited : set of node
 ; pheromones : (node node) -> int
 ; sight : (node node) -> int
+; returns : probability of choosing node j as the next node
 (defn as-transition-rule [i j unvisited pheromones sight alpha beta]
   (/ (* (exp (pheromones i j) alpha)
 	(exp (sight i j) beta)
-     (apply + (map (fn [unvisited-node] (* (exp (pheromones i unvisited-node) alpha)
+     (apply + (map (fn [unvisited-node] (* (exp (pheromones [i unvisited-node]) alpha)
 				     (exp (sight i unvisited-node) beta)))
 	       unvisited)))))
 
 (defn acs-transition-rule [i j unvisited pheromones sight beta]
   (as-transition-rule i j unvisited pheromones sight 1 beta))
 
-(defn init-sight [graph]
+(defn get-sight [graph]
   (let [sight (fn [i j]
 		  (/ 1
 		     (weight graph i j)))]
     sight))
 
+(defn tour-length ;todo
+  )

@@ -114,7 +114,13 @@
     (solve cities antcount (take antcount (shuffle (nodes cities))) #(reduce (partial assoc) {} (edges %) (repeat (/ 1 (* (count (nodes %))
                                                                                                                          (nearest-neighbor-heuristic %)))))
 
-(defn change-pheromones [best-tour tours pheromones]
-  (add-pheromone-on-tour (? best-tour)
-                         (? best-tour)
-                         (decay-pheromone-on-tour (? tours) pheromones))
+;(defn change-pheromones [best-tour tours pheromones]
+;  (add-pheromone-on-tour (? best-tour)
+;                         (? best-tour)
+;                         (decay-pheromone-on-tour (? tours) pheromones))
+
+(defn tour-edges [node-list]
+  (second (reduce (fn [[prev edges-list] node]
+		      (cond [(nil? prev) [node edges-list]
+			     :else [node (concat edges-list (list [prev node]))]]
+			    [nil (list)] node-list)))))

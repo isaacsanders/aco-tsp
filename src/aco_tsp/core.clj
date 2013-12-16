@@ -1,34 +1,49 @@
 (ns aco-tsp.core
-  (:require [clojure.set])
-  (:use [loom.graph]
-        [clojure.math.numeric-tower :only [expt]]
+  (:require [clojure.set]
+            [loom.graph :as loom])
+  (:use [clojure.math.numeric-tower :only [expt]]
         [aco-tsp.graph]
         [clojure.java.io :only [file]]))
 
 (defn init-pheromones [g]
   (reduce (fn [m elem] (assoc m elem 0 ))
           {}
-          (edges g)))
+          (loom/edges g)))
 
 (defn add-pheromone [amt edge m]
   (update-in m [edge] (partial + amt)))
 
+(defn tau-sub-0 [g]
+  (/ 1.0 (* (count (loom/nodes g))
+          (nearest-neighbor-heuristic g))))
+
 (def cl 10)
-(def q-sub-0 0.5)
+(def q-sub-0 0.0)
 (def beta 1)
 (def rho 0.1)
 
+(defn decay-pheromones [pheromones g edges]
+
+  (reduce (fn [p e]
+            (let [new-val (+ (* (- 1.0 rho) (p e))
+                             (* rho (tau-sub-0 g)))]
+              (assoc (assoc p e new-val) (reverse e) new-val)))
+          pheromones edges))
+
 (defn visibility [g i j]
-  (/ 1.0 (weight g i j)))
+  (/ 1.0 (loom/weight g i j)))
 
 (defn tau-eta [g p i j]
+  (println p (p [i j]))
   (* (p i j)
      (expt (visibility g i j) beta)))
 
 (defn choose-next-city [graph pheromones current previous]
-  (let [candidates (take cl (sort-by #(weight graph current %)
-                                     (clojure.set/difference (set (successors graph current))
-                                                             (set previous))))
+  (let [tabu-list (clojure.set/difference (set (loom/nodes graph))
+                                          (set (rest previous)))
+        candidates (clojure.set/difference (set (take cl (sort-by #(loom/weight graph current %)
+                                                                  (loom/successors graph current))))
+                                           (set previous))
         pheromones-fn (fn [candidate] (tau-eta graph pheromones current candidate))
         chance-fn (fn [probs]
                     (let [chance (rand)]
@@ -40,7 +55,7 @@
                             (recur [(+ prob next-prob) next-state] (rest probs)))))))
         probs-fn (fn [probs candidates]
                    (let [candidate (first candidates)
-                         normalizer (float (apply + (map (partial tau-eta graph pheromones current) candidates)))]
+                         normalizer (apply + (map (partial tau-eta graph pheromones current) candidates))]
                      (if (empty? candidates)
                        probs
                        (recur (assoc probs (/ (tau-eta graph pheromones current candidate) normalizer)
@@ -49,15 +64,17 @@
         probability-fn (fn [candidates]
                          (chance-fn (probs-fn {} candidates)))]
     (if (empty? candidates)
-      (apply (partial max-key (partial weight graph current)) (successors graph current))
+      (do
+        (println tabu-list)
+        (apply (partial min-key (partial loom/weight graph current)) tabu-list))
       (if (<= (rand) q-sub-0)
         (apply (partial max-key pheromones-fn) candidates)
         (probability-fn candidates)))))
 
 ; returns chosen tour
 (defn next-step [[current tour] graph pheromones]
-  (let [unvisited (clojure.set/difference (set (nodes graph)) (set tour))]
-    (case
+  (let [unvisited (clojure.set/difference (set (loom/nodes graph)) (set tour))]
+    (cond
       (nil? current) [current tour]
       (and (= current (first tour)) (empty? unvisited)) [nil (concat tour [current])]
       :else (let [next-state (choose-next-city graph pheromones current tour)]
@@ -65,10 +82,9 @@
 
 (defn do-transition [graph ants pheromones]
   (let [next-ants (map (fn [ant] (next-step ant graph pheromones)) ants)
-        tours (map second next-ants)
-        new-pheromones (decay-pheromones pheromones (vec (zipmap (filter #(not (nil? %)) (map first ants))
-                                                            (filter #(not (nil? %)) (map first next-ants)))))]
-    [ants pheromones]))
+        tours (map last next-ants)
+        new-pheromones (decay-pheromones pheromones graph (map #(map first %) (vec (zipmap next-ants ants))))]
+    [next-ants pheromones]))
 
 (defn find-tours [graph ants pheromones]
   (if (every? #(nil? (first %)) ants)
@@ -96,9 +112,9 @@
       (if (> time-step 100)
         (list best-tour pheromones) ; return
         (let [[new-ants new-pheromones] (find-tours graph ants pheromones)]
-          (recur (inc time-step) (apply (partial min-key
-                                                 (partial tour-cost graph))
-                                        (map second new-ants))
+          (recur (inc time-step)
+                 (apply (partial min-key (partial tour-cost graph))
+                        (map last new-ants))
                  (update-pheromones new-pheromones best-tour)))))))
 
 ; p^k[i,j](t)
@@ -121,13 +137,7 @@
 (defn -main [filename antcount]
   (let [cities (file->graph (file filename))
         antcount (Integer/parseInt antcount)]
-    (let [[best-tour pheromones]
-          (solve cities antcount
-                 #(map (fn [i] [i []]) (take %2 (shuffle (nodes %1))))
-                 #(zipmap (edges %) (repeat (/ 1 (* (count (nodes %))
-                                                    (nearest-neighbor-heuristic %))))))])))
-
-;(defn change-pheromones [best-tour tours pheromones]
-;  (add-pheromone-on-tour (? best-tour)
-;                         (? best-tour)
-;                         (decay-pheromone-on-tour (? tours) pheromones))
+    (let [[best-tour pheromones] (solve cities antcount
+                                        #(map (fn [i] [i []]) (take %2 (shuffle (loom/nodes %1))))
+                                        #(zipmap (loom/edges %) (repeat (tau-sub-0 cities))))]
+      (println best-tour))))

@@ -6,4 +6,5 @@
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [aysylu/loom "0.4.1"]
                  [org.clojure/math.numeric-tower "0.0.2"]]
+  :main aco-tsp.core
   :aot [loom.graph])

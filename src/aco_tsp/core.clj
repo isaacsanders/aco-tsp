@@ -38,7 +38,7 @@
         candidates (disj (clojure.set/difference (set (take (constants :cl)
                                                       (sort-by #(loom/weight graph current %)
                                                                neighbors)))
-                                           (set previous))
+                                           (set (rest previous)))
                          current)
         pheromones-fn (fn [candidate] (tau-eta graph pheromones current beta candidate))
         chance-fn (fn [probs]
@@ -69,7 +69,7 @@
   (let [unvisited (clojure.set/difference (set (loom/nodes graph)) (set tour))]
     (cond
       (nil? current) [current tour]
-      (and (= current (first tour)) (empty? unvisited)) [nil (concat tour [current])]
+      (empty? unvisited) [nil (concat tour [current])]
       :else (let [next-state (choose-next-city graph pheromones current tour constants)]
               [next-state (concat tour [current])]))))
 

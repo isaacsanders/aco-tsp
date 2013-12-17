@@ -94,9 +94,9 @@
                       :else [node (concat edges-list (list [prev node]))]))
                       [nil (list)] node-list)))
 
-(defn update-pheromones [pheromones tour rho]
+(defn update-pheromones [pheromones graph tour rho]
   (reduce (fn [p edge] (assoc p edge (+ (* (- 1 rho) (pheromones edge))
-                                        (* rho (/ 1 (tour-cost tour))))))
+                                        (* rho (/ 1 (tour-cost graph tour))))))
           pheromones (tour-edges tour)))
 
 (defn solve [graph init-ants-fn init-pheromones-fn constants]
@@ -105,13 +105,13 @@
            best-tour nil
            pheromones (init-pheromones-fn graph)]
       (println "begin time step" time-step)
-      (if (> time-step 100)
+      (if (> time-step 10)
         (list best-tour pheromones) ; return
         (let [[new-ants new-pheromones] (find-tours graph ants pheromones constants)]
           (recur (inc time-step)
                  (apply (partial min-key (partial tour-cost graph))
                         (map last new-ants))
-                 (update-pheromones new-pheromones best-tour (constants :rho))))))))
+                 (update-pheromones new-pheromones graph best-tour (constants :rho))))))))
 
 ; p^k[i,j](t)
 ; i : node

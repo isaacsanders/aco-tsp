@@ -104,7 +104,6 @@
     (loop [time-step 0
            best-tour nil
            pheromones (init-pheromones-fn graph)]
-      (println "begin time step" time-step)
       (if (= time-step 15)
         (list best-tour pheromones) ; return
         (let [[new-ants new-pheromones] (find-tours graph ants pheromones constants)]

@@ -28,8 +28,7 @@
   (/ 1.0 (loom/weight g i j)))
 
 (defn tau-eta [g p i beta j]
-  (println p (p [i j]))
-  (* (p i j)
+  (* (p [i j])
      (expt (visibility g i j) beta)))
 
 (defn choose-next-city [graph pheromones current previous constants]

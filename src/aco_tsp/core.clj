@@ -51,7 +51,7 @@
                             (recur [(+ prob next-prob) next-state] (rest probs)))))))
         probs-fn (fn [probs candidates]
                    (let [candidate (first candidates)
-                         normalizer (apply + (map (partial tau-eta graph pheromones current beta) candidates))]
+                         normalizer (apply + (pmap (partial tau-eta graph pheromones current beta) candidates))]
                      (if (empty? candidates)
                        probs
                        (recur (assoc probs (/ (tau-eta graph pheromones current beta candidate) normalizer)
@@ -74,7 +74,7 @@
               [next-state (concat tour [current])]))))
 
 (defn do-transition [graph ants pheromones constants]
-  (let [next-ants (map (fn [ant] (next-step ant graph pheromones constants)) ants)
+  (let [next-ants (pmap (fn [ant] (next-step ant graph pheromones constants)) ants)
         tours (map last next-ants)
         new-pheromones (decay-pheromones pheromones graph
                                          (filter first (map #(map first %) (vec (zipmap next-ants ants))))
@@ -105,12 +105,14 @@
            best-tour nil
            pheromones (init-pheromones-fn graph)]
       (println "begin time step" time-step)
-      (if (> time-step 10)
+      (if (= time-step 15)
         (list best-tour pheromones) ; return
         (let [[new-ants new-pheromones] (find-tours graph ants pheromones constants)]
           (recur (inc time-step)
                  (apply (partial min-key (partial tour-cost graph))
-                        (map last new-ants))
+                        (if (nil? best-tour)
+                          (map last new-ants)
+                          (cons best-tour (map last new-ants))))
                  (update-pheromones new-pheromones graph best-tour (constants :rho))))))))
 
 ; p^k[i,j](t)
@@ -143,7 +145,7 @@
         antcount (Integer/parseInt antcount)
         cl 10 ;(Integer/parseInt cl)
         rho 0.1 ;(Float/parseFloat rho)
-        beta 1 ;(Float/parseFloat beta)
+        beta 1.5 ;(Float/parseFloat beta)
         q-sub-0 0.5] ;(Float/parseFloat q-sub-0)]
     (let [[best-tour pheromones] (solve cities
 					aco-init-ants-fn

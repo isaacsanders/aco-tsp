@@ -1,4 +1,5 @@
 (defproject aco-tsp "0.1.0-SNAPSHOT"
+  :jvm-opts ["-Xmx4G"]
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"

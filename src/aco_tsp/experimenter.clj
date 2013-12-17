@@ -16,11 +16,13 @@
 	:cl cl,
 	:q-sub-0 q-sub-0}))
 
-(defn -main []
-  (loop [constants-sets (generate-constants-sets)]
-	(let [constants (first constants-sets)
-	      rest-constants (rest constants-sets)]
-	  (println (solve aco-init-ants-fn
-			  aco-init-pheromones-fn
-			  constants))
-	  (recur rest-constants))))
+(defn -main [filename]
+  (let [cities (file->graph (file filename))]
+    (loop [constants-sets (generate-constants-sets)]
+	  (let [constants (first constants-sets)
+		rest-constants (rest constants-sets)]
+	    (println (solve cities
+			    aco-init-ants-fn
+			    aco-init-pheromones-fn
+			    constants))
+	    (recur rest-constants)))))

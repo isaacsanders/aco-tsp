@@ -3,6 +3,7 @@
             [loom.graph :as loom])
   (:use [clojure.math.numeric-tower :only [expt]]
         [aco-tsp.graph]
+        [loom.io]
         [clojure.java.io :only [file]]))
 
 (defn init-pheromones [g]
@@ -33,11 +34,11 @@
 
 (defn choose-next-city [graph pheromones current previous constants]
   (let [beta (constants :beta)
-        tabu-list (clojure.set/difference (set (loom/nodes graph))
-                                          (set (rest previous)))
-        candidates (clojure.set/difference (set (take (constants :cl) (sort-by #(loom/weight graph current %)
-                                                                  (loom/successors graph current))))
+        candidates (disj (clojure.set/difference (set (take (constants :cl)
+                                                      (sort-by #(loom/weight graph current %)
+                                                               (loom/successors graph current))))
                                            (set previous))
+                         current)
         pheromones-fn (fn [candidate] (tau-eta graph pheromones current beta candidate))
         chance-fn (fn [probs]
                     (let [chance (rand)]
@@ -57,13 +58,10 @@
                               (rest candidates)))))
         probability-fn (fn [candidates]
                          (chance-fn (probs-fn {} candidates)))]
-    (if (empty? candidates)
-      (do
-        (println tabu-list)
-        (apply (partial min-key (partial loom/weight graph current)) tabu-list))
-      (if (<= (rand) (constants :q-sub-0))
-        (apply (partial max-key pheromones-fn) candidates)
-        (probability-fn candidates)))))
+    (cond
+      (empty? candidates) (apply (partial min-key (partial loom/weight graph current)) candidates)
+      (<= (rand) (constants :q-sub-0)) (apply (partial max-key pheromones-fn) candidates)
+      :else (probability-fn candidates))))
 
 ; returns chosen tour
 (defn next-step [[current tour] graph pheromones constants]
@@ -81,6 +79,7 @@
     [next-ants pheromones]))
 
 (defn find-tours [graph ants pheromones constants]
+  (println (map first ants))
   (if (every? #(nil? (first %)) ants)
     [ants pheromones]
     (let [[ants pheromones] (do-transition graph ants pheromones constants)]
@@ -103,6 +102,7 @@
     (loop [time-step 0
            best-tour nil
            pheromones (init-pheromones-fn graph)]
+      (println "begin time step" time-step)
       (if (> time-step 100)
         (list best-tour pheromones) ; return
         (let [[new-ants new-pheromones] (find-tours graph ants pheromones constants)]

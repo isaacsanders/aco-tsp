@@ -144,7 +144,7 @@
         cl 10 ;(Integer/parseInt cl)
         rho 0.1 ;(Float/parseFloat rho)
         beta 1 ;(Float/parseFloat beta)
-        q-sub-0 0.0] ;(Float/parseFloat q-sub-0)]
+        q-sub-0 0.5] ;(Float/parseFloat q-sub-0)]
     (let [[best-tour pheromones] (solve cities
 					aco-init-ants-fn
 					aco-init-pheromones-fn
@@ -153,4 +153,4 @@
 					 :rho rho,
 					 :cl cl,
 					 :q-sub-0 q-sub-0})]
-      (println best-tour))))
+      (println best-tour (tour-cost graph best-tour)))))

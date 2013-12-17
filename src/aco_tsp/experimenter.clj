@@ -6,10 +6,10 @@
 
 (defn generate-constants-sets []
   (for [antcount (range 0 3)
-	beta (range 0 5 .5)
+	beta (range 0 5 0.5)
 	rho [0.1]
 	cl [10]
-	q-sub-0 [.5]]
+	q-sub-0 [0.5]]
        {:antcount antcount,
 	:beta beta,
 	:rho rho,

@@ -20,7 +20,7 @@
 
 (defn decay-pheromones [pheromones g edges rho]
   (reduce (fn [p e]
-            (let [new-val (+ (* (- 1.0 rho) (p e))
+            (let [new-val (+ (* (- 1.0 rho) (pheromones e))
                              (* rho (tau-sub-0 g)))]
               (assoc (assoc p e new-val) (reverse e) new-val)))
           pheromones edges))
@@ -76,11 +76,12 @@
 (defn do-transition [graph ants pheromones constants]
   (let [next-ants (map (fn [ant] (next-step ant graph pheromones constants)) ants)
         tours (map last next-ants)
-        new-pheromones (decay-pheromones pheromones graph (map #(map first %) (vec (zipmap next-ants ants))) (constants :rho))]
+        new-pheromones (decay-pheromones pheromones graph
+                                         (filter first (map #(map first %) (vec (zipmap next-ants ants))))
+                                         (constants :rho))]
     [next-ants pheromones]))
 
 (defn find-tours [graph ants pheromones constants]
-  (println (map first ants))
   (if (every? #(nil? (first %)) ants)
     [ants pheromones]
     (let [[ants pheromones] (do-transition graph ants pheromones constants)]

@@ -153,4 +153,4 @@
 					 :rho rho,
 					 :cl cl,
 					 :q-sub-0 q-sub-0})]
-      (println best-tour (tour-cost graph best-tour)))))
+      (println best-tour (tour-cost cities best-tour)))))

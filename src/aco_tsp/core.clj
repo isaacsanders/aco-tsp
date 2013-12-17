@@ -34,9 +34,10 @@
 
 (defn choose-next-city [graph pheromones current previous constants]
   (let [beta (constants :beta)
+        neighbors (set (loom/successors graph current))
         candidates (disj (clojure.set/difference (set (take (constants :cl)
                                                       (sort-by #(loom/weight graph current %)
-                                                               (loom/successors graph current))))
+                                                               neighbors)))
                                            (set previous))
                          current)
         pheromones-fn (fn [candidate] (tau-eta graph pheromones current beta candidate))
@@ -59,7 +60,7 @@
         probability-fn (fn [candidates]
                          (chance-fn (probs-fn {} candidates)))]
     (cond
-      (empty? candidates) (apply (partial min-key (partial loom/weight graph current)) candidates)
+      (empty? candidates) (apply (partial min-key (partial loom/weight graph current)) neighbors)
       (<= (rand) (constants :q-sub-0)) (apply (partial max-key pheromones-fn) candidates)
       :else (probability-fn candidates))))
 

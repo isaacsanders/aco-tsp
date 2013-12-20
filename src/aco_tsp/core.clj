@@ -6,14 +6,6 @@
         [loom.io]
         [clojure.java.io :only [file]]))
 
-(defn init-pheromones [g]
-  (reduce (fn [m elem] (assoc m elem 0 ))
-          {}
-          (loom/edges g)))
-
-(defn add-pheromone [amt edge m]
-  (update-in m [edge] (partial + amt)))
-
 (defn tau-sub-0 [g]
   (/ 1.0 (* (count (loom/nodes g))
           (nearest-neighbor-heuristic g))))
@@ -75,11 +67,10 @@
 
 (defn do-transition [graph ants pheromones constants]
   (let [next-ants (pmap (fn [ant] (next-step ant graph pheromones constants)) ants)
-        tours (map last next-ants)
         new-pheromones (decay-pheromones pheromones graph
                                          (filter first (map #(map first %) (vec (zipmap next-ants ants))))
                                          (constants :rho))]
-    [next-ants pheromones]))
+    [next-ants new-pheromones]))
 
 (defn find-tours [graph ants pheromones constants]
   (if (every? #(nil? (first %)) ants)
